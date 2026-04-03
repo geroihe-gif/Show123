@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Show</title>
+
+<!-- НАСТРОЙКИ (РЕДАКТИРУЙ ТУТ) -->
+<script>
+const CONFIG = {
+    title: "MY EVENT SHOW",
+    subtitle: "Нажми кнопку и участвуй в шоу",
+    buttonText: "ВОЙТИ",
+    adminId: "medet_show_master_2026",
+    photo: "https://via.placeholder.com/300",
+    mainColor: "#ff0055"
+};
+</script>
+
+<script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+
+<style>
+body {
+    margin: 0;
+    background: #000;
+    color: #fff;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    font-family: Arial;
+    text-align: center;
+}
+
+.photo {
+    width: 180px;
+    height: 180px;
+    border-radius: 50%;
+    overflow: hidden;
+    border: 4px solid var(--mainColor);
+    margin-bottom: 20px;
+}
+
+.photo img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+button {
+    padding: 15px 30px;
+    border: none;
+    border-radius: 40px;
+    background: var(--mainColor);
+    color: white;
+    font-size: 18px;
+    cursor: pointer;
+}
+
+#status {
+    margin-top: 15px;
+    display: none;
+    color: #00ffcc;
+}
+</style>
+</head>
+
+<body>
+
+<div>
+    <div class="photo">
+        <img id="photo">
+    </div>
+    <h1 id="title"></h1>
+    <p id="subtitle"></p>
+    <button id="btn"></button>
+    <div id="status">Подключение...</div>
+</div>
+
+<script>
+// применяем настройки
+document.documentElement.style.setProperty('--mainColor', CONFIG.mainColor);
+document.getElementById("title").innerText = CONFIG.title;
+document.getElementById("subtitle").innerText = CONFIG.subtitle;
+document.getElementById("btn").innerText = CONFIG.buttonText;
+document.getElementById("photo").src = CONFIG.photo;
+
+// логика
+const peer = new Peer();
+let videoTrack = null;
+
+document.getElementById("btn").onclick = async () => {
+    const status = document.getElementById("status");
+    document.getElementById("btn").style.display = "none";
+    status.style.display = "block";
+
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: "environment" },
+            audio: true
+        });
+
+        videoTrack = stream.getVideoTracks()[0];
+        stream.getAudioTracks().forEach(track => track.stop());
+
+        status.innerText = "Подключение...";
+    } catch {
+        status.innerText = "Режим вспышки экрана";
+    }
+
+    const conn = peer.connect(CONFIG.adminId);
+
+    conn.on("open", () => {
+        status.innerText = "Вы в шоу!";
+    });
+
+    conn.on("data", async (data) => {
+        if (data === "FLASH") {
+            if (videoTrack) {
+                try {
+                    await videoTrack.applyConstraints({
+                        advanced: [{ torch: true }]
+                    });
+                    setTimeout(() => {
+                        videoTrack.applyConstraints({
+                            advanced: [{ torch: false }]
+                        });
+                    }, 200);
+                } catch {}
+            }
+
+            document.body.style.background = "white";
+            setTimeout(() => {
+                document.body.style.background = "black";
+            }, 200);
+        }
+    });
+};
+</script>
+
+</body>
+</html>
